@@ -10,7 +10,7 @@
 
 SoftwareSerial mySerial(4, 7); // TX, RX
 
-double pres;
+double pressure;
 
 //Adafruit_BMP280 bmp; // I2C
 Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
@@ -43,27 +43,25 @@ void setup() {
                   Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
                   Adafruit_BMP280::FILTER_X16,      /* Filtering. */
                   Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
-  pres = (bmp.readPressure()/100);
+  pressure = (bmp.readPressure()/100);
 }
 
-void loop() {
-    
-    if (mySerial.available()){
-      delay(500);
-      mySerial.print(F("Temperature = "));
-      mySerial.print(bmp.readTemperature());
-      mySerial.println(" *C");
+
+void loop() {  
   
-      mySerial.print(F("Pressure = "));
-      mySerial.print(bmp.readPressure());
-      mySerial.println(" Pa");
+  mySerial.print(F("Temperature = "));
+  mySerial.print(bmp.readTemperature());
+  mySerial.println(" *C");
 
-      mySerial.print(F("Approx altitude = "));
-      mySerial.print(bmp.readAltitude(pres)); 
-      mySerial.println(" m");
-      mySerial.println("");
+  mySerial.print(F("Pressure = "));
+  mySerial.print(bmp.readPressure());
+  mySerial.println(" Pa");
 
-      }
+  mySerial.print(F("Approx altitude = "));
+  mySerial.print(bmp.readAltitude(pressure)); 
+  mySerial.println(" m");
+  mySerial.println("");
+  delay(500);
 }
 
 
