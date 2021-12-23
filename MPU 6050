@@ -1,0 +1,54 @@
+#include <SoftwareSerial.h>
+#include <Wire.h>
+
+
+const int MPU = 0x68;
+int16_t AcX, AcY, AcZ, Tmp, GyX, GyY, GyZ;
+
+SoftwareSerial mySerial(4, 7); // TX, RX
+
+
+void setup() {
+
+  Wire.begin();
+  Wire.beginTransmission(MPU);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
+
+  Serial.begin(9600);
+  while ( !Serial ) {
+    ;   // wait for native usb
+  }
+  mySerial.begin(9600);
+}
+
+void loop() {
+
+  Wire.beginTransmission(MPU);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU, 12, true);
+  AcX = Wire.read() << 8 | Wire.read();
+  AcY = Wire.read() << 8 | Wire.read();
+  AcZ = Wire.read() << 8 | Wire.read();
+  GyX = Wire.read() << 8 | Wire.read();
+  GyY = Wire.read() << 8 | Wire.read();
+  GyZ = Wire.read() << 8 | Wire.read();
+
+
+  mySerial.print("Accelerometer: ");
+  mySerial.print("X = "); mySerial.print(AcX);
+  mySerial.print(" | Y = "); mySerial.print(AcY);
+  mySerial.print(" | Z = "); mySerial.println(AcZ);
+
+  mySerial.print("Gyroscope: ");
+  mySerial.print("X = "); mySerial.print(GyX);
+  mySerial.print(" | Y = "); mySerial.print(GyY);
+  mySerial.print(" | Z = "); mySerial.println(GyZ);
+  mySerial.println(" ");
+  delay(500);
+
+}
+
+
