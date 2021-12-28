@@ -1,0 +1,106 @@
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_BMP280.h>
+#include <SoftwareSerial.h>
+
+#define BMP_SCK  (13)
+#define BMP_MISO (12)
+#define BMP_MOSI (11)
+#define BMP_CS   (10)
+
+const int MPU = 0x68;
+int16_t AcX, AcY, AcZ, Tmp, GyX, GyY, GyZ;
+
+SoftwareSerial mySerial(4, 7); // TX, RX
+
+double pressure;
+
+//Adafruit_BMP280 bmp; // I2C
+Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
+//Adafruit_BMP280 bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
+
+
+void setup() {
+
+  Wire.begin();
+  Wire.beginTransmission(MPU);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
+
+  Serial.begin(9600);
+  while ( !Serial ) {
+    ;
+  }
+  Serial.println(F("BMP280 test"));
+  unsigned status;
+  //status = bmp.begin(BMP280_ADDRESS_ALT, BMP280_CHIPID);
+  status = bmp.begin();
+  if (!status) {
+    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+                     "mtry a different address!"));
+    Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(), 16);
+    Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+    Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
+    Serial.print("        ID of 0x60 represents a BME 280.\n");
+    Serial.print("        ID of 0x61 represents a BME 680.\n");
+    while (1) delay(10);
+  }
+  mySerial.begin(9600);
+
+  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+  pressure = (bmp.readPressure() / 100);
+}
+
+
+void loop() {
+
+  Wire.beginTransmission(MPU);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU, 12, true);
+  AcX = Wire.read() << 8 | Wire.read();
+  AcY = Wire.read() << 8 | Wire.read();
+  AcZ = Wire.read() << 8 | Wire.read();
+  GyX = Wire.read() << 8 | Wire.read();
+  GyY = Wire.read() << 8 | Wire.read();
+  GyZ = Wire.read() << 8 | Wire.read();
+
+
+  mySerial.println("--------------");
+  mySerial.println("MPU:");
+
+  mySerial.print("Accelerometer: ");
+  mySerial.print("X = "); mySerial.print(AcX);
+  mySerial.print(" | Y = "); mySerial.print(AcY);
+  mySerial.print(" | Z = "); mySerial.println(AcZ);
+
+  mySerial.print("Gyroscope: ");
+  mySerial.print("X = "); mySerial.print(GyX);
+  mySerial.print(" | Y = "); mySerial.print(GyY);
+  mySerial.print(" | Z = "); mySerial.println(GyZ);
+  mySerial.println(" ");
+
+  mySerial.println("--------------");
+  mySerial.println("BMP: ");
+
+
+
+  mySerial.print(F("Temperature = "));
+  mySerial.print(bmp.readTemperature());
+  mySerial.println(" *C");
+
+  mySerial.print(F("Pressure = "));
+  mySerial.print(bmp.readPressure());
+  mySerial.println(" Pa");
+
+  mySerial.print(F("Approx altitude = "));
+  mySerial.print(bmp.readAltitude(pressure));
+  mySerial.println(" m");
+  mySerial.println("");
+  delay(2000);
+}
