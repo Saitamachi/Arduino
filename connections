@@ -1,0 +1,22 @@
+APC 220 ------------------
+VCC -> 5V
+GND -> GND
+EN  -> -
+RXD -> 7
+TXD -> 4
+AUX -> -
+SET -> -
+
+BMP 280 -------------
+VCC -> 3.3V
+GND -> GND
+SCU -> 13
+SDA -> 11
+CSE -> 10
+SDC -> 12
+
+MPU 6050 -----------
+VCC -> 5V
+GND -> GND
+SCL -> A5
+SDA -> A4
