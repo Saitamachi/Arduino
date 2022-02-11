@@ -1,5 +1,5 @@
 APC 220 ------------------
-SoftwareSerial mySerial(7, 4);
+SoftwareSerial mySerial(4, 7);
 VCC -> 5V
 GND -> GND
 EN  -> -
