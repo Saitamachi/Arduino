@@ -24,6 +24,6 @@ SDA -> A4
 
 NEO 6M ------------
 VCC -> 5V
-RX ->  3
-TX ->  2
+RX ->  2
+TX ->  8
 GND -> GND
