@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <Adafruit_BMP280.h>
 #include <SoftwareSerial.h>
+#include <TinyGPSPlus.h>
 
 #define BMP_SCK  (13)
 #define BMP_MISO (12)
@@ -11,7 +12,9 @@
 const int MPU = 0x68;
 int16_t AcX, AcY, AcZ, Tmp, GyX, GyY, GyZ;
 
+TinyGPSPlus gps;
 SoftwareSerial mySerial(4, 7); // TX, RX
+SoftwareSerial gpsSerial(8, 2);
 
 double pressure;
 
@@ -48,6 +51,7 @@ void setup() {
     while (1) delay(10);
   }
   mySerial.begin(9600);
+  gpsSerial.begin(9600);
 
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
@@ -64,11 +68,77 @@ void loop() {
   // sensors
   mpu_sensor();
   bmp_sensor();
+  gps_sensor();
   
 
 
   delay(2000);
 }
+
+// GPS ---------------------------------
+void gps_sensor(){
+  while (gpsSerial.available() > 0)
+    if (gps.encode(gpsSerial.read())){
+      if (gps.location.isValid())
+  {
+    mySerial.print("Latitude: ");
+    mySerial.println(gps.location.lat(), 6);
+    mySerial.print("Longitude: ");
+    mySerial.println(gps.location.lng(), 6);
+    mySerial.print("Altitude: ");
+    mySerial.println(gps.altitude.meters());
+  }
+  else
+  {
+    mySerial.println("Location: Not Available");
+  }
+  
+  mySerial.print("Date: ");
+  if (gps.date.isValid())
+  {
+    mySerial.print(gps.date.month());
+    mySerial.print("/");
+    mySerial.print(gps.date.day());
+    mySerial.print("/");
+    mySerial.println(gps.date.year());
+  }
+  else
+  {
+    mySerial.println("Not Available");
+  }
+
+  mySerial.print("Time: ");
+  if (gps.time.isValid())
+  {
+    if (gps.time.hour() < 10) mySerial.print(F("0"));
+    mySerial.print(gps.time.hour());
+    mySerial.print(":");
+    if (gps.time.minute() < 10) mySerial.print(F("0"));
+    mySerial.print(gps.time.minute());
+    mySerial.print(":");
+    if (gps.time.second() < 10) mySerial.print(F("0"));
+    mySerial.print(gps.time.second());
+    mySerial.print(".");
+    if (gps.time.centisecond() < 10) mySerial.print(F("0"));
+    mySerial.println(gps.time.centisecond());
+  }
+  else
+  {
+    mySerial.println("Not Available");
+  }
+
+  mySerial.println();
+  mySerial.println();
+      }
+  
+  if (millis() > 5000 && gps.charsProcessed() < 10)
+  {
+    mySerial.println("No GPS detected");
+    while(true);
+  }
+ }
+
+  
 
 // BMP ---------------------------------
 void bmp_sensor() {
