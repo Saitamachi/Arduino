@@ -1,5 +1,4 @@
 APC 220 ------------------
-SoftwareSerial mySerial(4, 7);
 VCC -> 5V
 GND -> GND
 EN  -> -
@@ -11,19 +10,33 @@ SET -> -
 BMP 280 -------------
 VCC -> 3.3V
 GND -> GND
-SCU -> 13
+SCL -> 13
 SDA -> 11
-CSE -> 10
-SDC -> 12
+CSB -> 10
+SDO -> 12
 
 MPU 6050 -----------
 VCC -> 5V
 GND -> GND
 SCL -> A5
 SDA -> A4
+XDA -> -
+XCL -> -
+ADO -> -
+INT -> -
 
 NEO 6M ------------
 VCC -> 5V
 RX ->  2
 TX ->  8
 GND -> GND
+
+4in1 ESC ----------
+M1 -> 3
+M2 -> 5
+M3 -> 6
+M4 -> 9
+GND -> GND
+BAT+ -> Vin
+CRR -> -
+TEL -> -
