@@ -1,0 +1,393 @@
+//////////////////////////////
+//         Motoren (ESCs)   //
+//  pinouts:  motor 1 -> 3  //
+//            motor 2 -> 5  //
+//            motor 3 -> 6  //
+//            motor 4 -> 9  //
+//////////////////////////////
+
+#include <Servo.h>
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <MPU6050_light.h>
+ 
+MPU6050 mpu(Wire);
+unsigned long print_timer_mpu = 0;
+bool print_mpu = false;
+char positie = " ";
+
+#define MIN_PULSE_LENGTH 1000
+#define MAX_PULSE_LENGTH 1010
+
+
+Servo esc1;
+Servo esc2;
+Servo esc3;
+Servo esc4;
+
+char pitch_kant = ' ';
+char roll_kant = ' ';
+
+int first = 0;
+long unsigned a = 0;
+long unsigned delay_start = 0;
+
+int HOVER_SPEED = 1165; // hover bij ong 330g
+
+long x_ang, y_ang, z_ang;
+char data;
+
+float X, Y, Z;
+
+int MOTOR_1 = 3;
+int MOTOR_2 = 5;
+int MOTOR_3 = 6;
+int MOTOR_4 = 9;
+
+int motor1 = 0;
+int motor2 = 0;
+int motor3 = 0;
+int motor4 = 0;
+
+int dir_pin = 0;
+int step_pin = 1;
+
+// MPU VARS ============================
+int gyro_x, gyro_y, gyro_z;
+long acc_x, acc_y, acc_z, acc_total_vector;
+int temperature;
+long gyro_x_cal, gyro_y_cal, gyro_z_cal;
+long loop_timer;
+int lcd_loop_counter;
+float angle_pitch, angle_roll;
+float angle_pitch_buffer, angle_roll_buffer;
+float pitch_offset, roll_offset;
+boolean set_gyro_angles;
+float angle_roll_acc, angle_pitch_acc;
+float angle_pitch_output, angle_roll_output;
+
+// ====================================
+
+
+SoftwareSerial mySerial(4, 7); // TX, RX
+
+int initESC(){
+  esc1.attach(MOTOR_1, 1000, 2000);
+  esc2.attach(MOTOR_2, 1000, 2000);
+  esc3.attach(MOTOR_3, 1000, 2000);
+  esc4.attach(MOTOR_4, 1000, 2000);
+
+  esc1.write(90);
+  esc2.write(90);
+  esc3.write(90);
+  esc4.write(90);
+
+  esc1.writeMicroseconds(1500);
+  esc2.writeMicroseconds(1500);
+  esc3.writeMicroseconds(1500);
+  esc4.writeMicroseconds(1500);
+
+  delay(3000);
+  return 1;
+  
+  }
+
+
+void hover_system(){
+  /*
+     * roll -> angle_roll_buffer 
+     * pitch -> angle_pitch_buffer
+     * +X -> rechts
+     * -X -> links
+     * +Y -> voor
+     * -Y -> achter
+     * mpu 6050 +/- 1 graad
+     */
+
+  // drone naar voor gedraaid
+  
+  // voor
+  if(Y > 1)positie = 'w';
+  // achter
+  if(Y < -1)positie = 's';
+  // rechts
+  if(X > 1)positie = 'd';
+  // links
+  if(X < -1)positie = 'a';
+  
+  // links voor
+  if((Y > 1) && (X < -1))positie = '1';
+  // rechts voor
+  if((Y > 1) && (X > 1))positie = '2';
+  // rechts achter
+  if((Y < -1) && (X > 1))positie = '3';
+  // links achter
+  if((Y < -1) && (X < -1))positie = '4';
+  if((-1 < X < 1) && (-1 < Y < 1))positie = '0';
+    
+  
+  
+  /*
+  if(Y > 1){
+    if(X > 1)positie = '2';
+    if(X < -1)positie = '1';
+    if(-1 < X < 1)positie = 'w';
+    }
+  
+  else if(Y < -1){
+    if(X > 1)positie = '2';
+    if(X < -1)positie = '1';
+    if(-1 < X < 1)positie = 's';
+    }
+  else if(X > 1){
+    if(Y > 1)positie = '2';
+    if(Y < -1)positie = '3';
+    if(-1 < X < 1)positie = 'd';
+    }
+  else if(X < -1){
+    if(Y > 1)positie = '1';
+    if(Y < -1)positie = '4';
+    if(-1 < X < 1)positie = 'a';
+    }
+  else positie = '0';
+  */
+  
+
+
+  /*
+  if(Y > 1){
+    roll_kant = 'w';
+    }
+    // achter
+  else if(Y < -1){
+    roll_kant = 's';
+    }
+    // mid
+  else if((angle_roll_buffer >= -1) && (angle_roll_buffer <= 1)){
+    roll_kant = ' ';
+    }
+
+  // links
+  if(X < -1){
+    pitch_kant = 'a';
+    }
+    // rechts
+  else if(X > 1){
+    pitch_kant = 'd';
+    }
+    // mid
+  else if((angle_pitch_buffer >= -1) && (angle_pitch_buffer <= 1)){
+    pitch_kant = ' ';
+    }
+    */
+    
+    
+
+  
+  
+  }
+void setup_mpu(){
+  byte status = mpu.begin();
+  mySerial.print(F("MPU6050 status: "));
+  mySerial.println(status);
+  while(status!=0){ } 
+  
+  mySerial.println(F("Calculating offsets, do not move MPU6050"));
+  delay(1000);
+  mpu.calcOffsets();
+  mySerial.println("Done!\n");
+  }
+void get_angles(){
+  mpu.update();
+  X = mpu.getAngleX();
+  Y = mpu.getAngleY();
+  Z = mpu.getAngleZ();
+  }
+
+void print_angles(){
+  /*
+  mySerial.print("X : ");
+  mySerial.print(X);
+  mySerial.print("\tY : ");
+  mySerial.print(Y);
+  mySerial.print("\tZ : ");
+  mySerial.println(Z);
+
+  */
+  mySerial.print("Positie: ");
+  mySerial.println(positie);
+
+  
+  }
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+  while ( !Serial ) {
+    ;
+  }
+  mySerial.begin(9600);
+  setup_mpu();
+
+
+
+  // Motoren ----------------
+  int escOk = initESC();
+  // ------------------------
+  
+  displayInstructions();
+  
+}
+void(* resetFunc) (void) = 0;
+
+void loop() {
+  
+  get_angles();
+  hover_system();
+  if(((millis() - 10) >= print_timer_mpu) && print_mpu){
+    print_timer_mpu += 10;
+    print_angles();
+    }
+    
+  
+  if (mySerial.available()){
+    data = mySerial.read();
+
+    switch (data){ 
+      //0
+      case 48:mySerial.println("Sending minimum throttle");
+              esc1.writeMicroseconds(MIN_PULSE_WIDTH);
+              esc2.writeMicroseconds(MIN_PULSE_WIDTH);
+              esc3.writeMicroseconds(MIN_PULSE_WIDTH);
+              esc4.writeMicroseconds(MIN_PULSE_WIDTH);
+              break;
+
+      //1
+      case 49:mySerial.println("Sending 10%");
+              esc1.writeMicroseconds(1100);
+              esc2.writeMicroseconds(1100);
+              esc3.writeMicroseconds(1100);
+              esc4.writeMicroseconds(1100);
+              delay_start = millis();
+              while(true){
+
+                if((millis() - delay_start) >= 77000){
+                  mySerial.println("stop motoren");
+                  mySerial.println(millis() - delay_start);
+                  esc1.writeMicroseconds(1000);
+                  esc2.writeMicroseconds(1000);
+                  esc3.writeMicroseconds(1000);
+                  esc4.writeMicroseconds(1000);
+                  break;
+                  }
+                }
+              break;
+      
+      //2
+      case 50:mySerial.println("Sending 1%");
+              esc1.writeMicroseconds(1010);
+              esc2.writeMicroseconds(1010);
+              esc3.writeMicroseconds(1010);
+              esc4.writeMicroseconds(1010);
+              break;
+
+      
+      //3
+      case 51:mySerial.println("Sending 2%");
+              esc1.writeMicroseconds(1020);
+              esc2.writeMicroseconds(1020);
+              esc3.writeMicroseconds(1020);
+              esc4.writeMicroseconds(1020);
+              break;
+      //4
+      case 52:mySerial.println("Sending 3%");
+              esc1.writeMicroseconds(1030);
+              esc2.writeMicroseconds(1030);
+              esc3.writeMicroseconds(1030);
+              esc4.writeMicroseconds(1030);
+              break;
+
+      // 5
+      case 53 : mySerial.print("Running test in 3");
+                delay(1000);
+                mySerial.print(" 2");
+                delay(1000);
+                mySerial.println(" 1...");
+                delay(1000);
+                test();
+                break;
+      // 6
+      case 54: mySerial.println("Releasing arms");
+               
+               for(int i = 1; i <= 1000; i++){
+                release_arms();
+                }
+                
+                while(true){
+                  release_arms();
+                  }
+               mySerial.println("Stop");    
+               break;
+       // 7
+      case 55: print_mpu = !print_mpu;
+               if(print_mpu)Serial.println("Printing angles ");
+               if(!print_mpu)mySerial.println("Stopped printing angles ");        
+               break;
+      
+
+      // 8
+      case 56: mySerial.println("Resetting");
+               delay(500);
+               resetFunc();
+               break;
+               
+       
+      break;
+      }   
+}
+
+
+
+}
+
+
+void release_arms(){
+  mySerial.println("TEST");
+  digitalWrite(step_pin, HIGH);
+  delayMicroseconds(100);
+  digitalWrite(step_pin, LOW);
+  delayMicroseconds(100);
+  }
+
+
+void test(){
+    for (int i = MIN_PULSE_LENGTH; i <= 1150; i += 5) {
+        mySerial.print("Pulse length = ");
+        mySerial.println(i);
+        
+        esc1.writeMicroseconds(i);
+        esc2.writeMicroseconds(i);
+        esc3.writeMicroseconds(i);
+        esc4.writeMicroseconds(i);
+        delay(1000);
+    }
+    mySerial.println("STOP");
+    esc1.writeMicroseconds(MIN_PULSE_LENGTH);
+    esc2.writeMicroseconds(MIN_PULSE_LENGTH);
+    esc3.writeMicroseconds(MIN_PULSE_LENGTH);
+    esc4.writeMicroseconds(MIN_PULSE_LENGTH);
+}
+
+
+void displayInstructions()
+{  
+    mySerial.println("READY - PLEASE SEND INSTRUCTIONS AS FOLLOWING :");
+    mySerial.println("\t0 : Send min throttle");
+    mySerial.println("\t1 : Send 13% throttle");
+    mySerial.println("\t2 : Test 77 seconds flight");
+    mySerial.println("\t3 : Send 16% throttle");
+    mySerial.println("\t4 : Send 16.5% throttle");
+    mySerial.println("\t5 : Run test function");
+    mySerial.println("\t6 : Release arms");
+    mySerial.println("\t7 : Toggle angle output\n");
+}
