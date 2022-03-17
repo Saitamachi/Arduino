@@ -70,11 +70,12 @@ Servo esc3; // motor 3
 Servo esc4; // motor 4
 
 Servo release_servo;
-int release_servo_pos = 0;
 
-int first = 0;
-long unsigned a = 0;
-long unsigned delay_start = 0;
+// RELEASE MECH ===========================
+int release_servo_pos = 0;
+bool first = true;
+long unsigned delay_motoren_start = 0;
+bool delay_motoren_toggle = true;
 
 int current_throttle; // snelheid var
 
@@ -253,11 +254,14 @@ void print_angles(){
 }
 void print_bmp(){
     mySerial.print("Temperatuur: ");
-    mySerial.println(temperature);
+    mySerial.print(temperature);
+    mySerial.println(" graden");
     mySerial.print("Pressure: ");
-    mySerial.println(pressure);
+    mySerial.print(pressure);
+    mySerial.println(" pascal");
     mySerial.print("Hoogte: ");
-    mySerial.println(altitude);
+    mySerial.print(altitude);
+    mySerial.println(" meter");
     mySerial.println();
     
 }
@@ -352,109 +356,125 @@ void loop() {
         data = mySerial.read();
 
         switch (data){ 
-        //0
-        case 48:mySerial.println("Sending minimum throttle");
-                esc1.writeMicroseconds(MIN_PULSE_WIDTH);
-                esc2.writeMicroseconds(MIN_PULSE_WIDTH);
-                esc3.writeMicroseconds(MIN_PULSE_WIDTH);
-                esc4.writeMicroseconds(MIN_PULSE_WIDTH);
-                break;
+            //0
+            case 48:mySerial.println("Sending minimum throttle");
+                    esc1.writeMicroseconds(MIN_PULSE_WIDTH);
+                    esc2.writeMicroseconds(MIN_PULSE_WIDTH);
+                    esc3.writeMicroseconds(MIN_PULSE_WIDTH);
+                    esc4.writeMicroseconds(MIN_PULSE_WIDTH);
+                    break;
 
-        //1
-        case 49:mySerial.println("Sending 10%");
-              esc1.writeMicroseconds(1100);
-              esc2.writeMicroseconds(1100);
-              esc3.writeMicroseconds(1100);
-              esc4.writeMicroseconds(1100);
-              delay_start = millis();
-              while(true){
-
-                if((millis() - delay_start) >= 77000){
-                  mySerial.println("stop motoren");
-                  mySerial.println(millis() - delay_start);
-                  esc1.writeMicroseconds(1000);
-                  esc2.writeMicroseconds(1000);
-                  esc3.writeMicroseconds(1000);
-                  esc4.writeMicroseconds(1000);
-                  break;
-                  }
-                }
-              break;
-      
-        //2
-        case 50:mySerial.println("Sending 6%");
-                current_throttle = 1060;
-                esc1.writeMicroseconds(current_throttle);
-                esc2.writeMicroseconds(current_throttle);
-                esc3.writeMicroseconds(current_throttle);
-                esc4.writeMicroseconds(current_throttle);
-                break;
-
-        
-        //3
-        case 51:mySerial.println("Sending 8%");
-                current_throttle = 1080;
-                esc1.writeMicroseconds(current_throttle);
-                esc2.writeMicroseconds(current_throttle);
-                esc3.writeMicroseconds(current_throttle);
-                esc4.writeMicroseconds(current_throttle);
-                break;
-        //4
-        case 52:mySerial.println("Sending 16.5%");
-                current_throttle = 1165;
-                esc1.writeMicroseconds(current_throttle);
-                esc2.writeMicroseconds(current_throttle);
-                esc3.writeMicroseconds(current_throttle);
-                esc4.writeMicroseconds(current_throttle);
-                break;
-
-        // 6
-        case 54: mySerial.println("Releasing arms");
-                
-                for(int i = 1; i <= 1000; i++){
-                    release_arms();
-                    }
-                    
+            //1
+            case 49:mySerial.println("Sending 10%");
+                    esc1.writeMicroseconds(1100);
+                    esc2.writeMicroseconds(1100);
+                    esc3.writeMicroseconds(1100);
+                    esc4.writeMicroseconds(1100);
+                    delay_start = millis();
                     while(true){
-                    release_arms();
-                    }
-                mySerial.println("Stop");    
-                break;
 
-        // 8
-        case 56: mySerial.println("Resetting");
-                delay(500);
-                resetFunc();
+                        if((millis() - delay_start) >= 77000){
+                            mySerial.println("stop motoren");
+                            mySerial.println(millis() - delay_start);
+                            esc1.writeMicroseconds(1000);
+                            esc2.writeMicroseconds(1000);
+                            esc3.writeMicroseconds(1000);
+                            esc4.writeMicroseconds(1000);
+                            break;
+                        }
+                    }
                 break;
-        // 9
-        case 57: mySerial.println("Toggling hoveren: ");
-                if(!hoveren_toggle){hoveren_toggle = true;}else{hoveren_toggle = true;}
-                if(hoveren_toggle)mySerial.print("aan");
-                if(!hoveren_toggle)mySerial.print("Toggling hoveren: ");
         
-        break;
+            //2
+            case 50:mySerial.println("Sending 6%");
+                    current_throttle = 1060;
+                    esc1.writeMicroseconds(current_throttle);
+                    esc2.writeMicroseconds(current_throttle);
+                    esc3.writeMicroseconds(current_throttle);
+                    esc4.writeMicroseconds(current_throttle);
+                    break;
+
+            
+            //3
+            case 51:mySerial.println("Sending 8%");
+                    current_throttle = 1080;
+                    esc1.writeMicroseconds(current_throttle);
+                    esc2.writeMicroseconds(current_throttle);
+                    esc3.writeMicroseconds(current_throttle);
+                    esc4.writeMicroseconds(current_throttle);
+                    break;
+            //4
+            case 52:mySerial.println("Sending 16.5%");
+                    current_throttle = 1165;
+                    esc1.writeMicroseconds(current_throttle);
+                    esc2.writeMicroseconds(current_throttle);
+                    esc3.writeMicroseconds(current_throttle);
+                    esc4.writeMicroseconds(current_throttle);
+                    break;
+            
+            // 5
+            case 53: mySerial.println("Number 3 not being used");
+                    break;
+
+            // 6
+            case 54: mySerial.println("Releasing arms");
+                    
+                    for(int i = 1; i <= 1000; i++){
+                        release_arms();
+                        }
+                        
+                        while(true){
+                        release_arms();
+                        }
+                    mySerial.println("Stop");    
+                    break;
+
+            // 7
+            case 55: mySerial.println("Number 7 not being used");
+                    break;
+            
+            // 8
+            case 56: mySerial.println("Number 8 not being used");
+                    break;
+
+            // 9
+            case 57: mySerial.println("Resetting");
+                    delay(500);
+                    resetFunc();
+                    break;
+            
+            break;
         }   
     }
 }
 
 void release_motoren(){
-    release_arms();
+    if(first){
+        release_arms();
+        first = false;
+        delay_motoren_start = millis();
+    }
 
-    
+    if(((millis() - delay_motoren_start) >= 1000) && delay_motoren_toggle){
+        delay_motoren_toggle = false;
+        /* Release motoren
+        
 
+
+        */
+       
+        
+    }
 }
 
 void release_arms(){
     mySerial.println("Releasing arms ");
-    for (release_servo_pos = 0; release_servo_pos <= 50; release_servo_pos += 1) {
-        release_servo.write(release_servo_pos);              
-        delay(15);                       
-    }
+    release_servo.write(90);
+    delay(200);              
     release_servo.detach();
 }
 
-void displayInstructions()
-{  
+void displayInstructions(){  
     mySerial.println("READY - PLEASE SEND INSTRUCTIONS AS FOLLOWING :");
     mySerial.println("\t0 : Send min throttle");
     mySerial.println("\t1 : Test 77 seconds flight");
@@ -464,6 +484,6 @@ void displayInstructions()
     mySerial.println("\t5 : - ");
     mySerial.println("\t6 : Release arms");
     mySerial.println("\t7 : - ");
-    mySerial.println("\t8 : Resetten");
-    mySerial.println("\t9 : Toggle hoveren");
+    mySerial.println("\t8 : - ");
+    mySerial.println("\t9 : Resetten");
 }
