@@ -25,9 +25,6 @@ unsigned long print_timer_gps = 0;
 unsigned long print_timer = 0;
 
 // PRINTS =================================
-bool print_mpu = false; // mpu 6050
-bool print_bmp = false; // bmp 280
-bool print_gps = false; // neo 6m
 bool print_alles = true; // alles
 
 // HOVEREN ================================
@@ -47,10 +44,11 @@ float X, Y, Z;
 #define BMP_CS   (10)
 
 Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
-double pressure;
+double pressure_begin;
 
 float temperature;
 float altitude;
+float pressure;
 
 // NEO 6M =================================
 TinyGPSPlus gps;
@@ -239,16 +237,16 @@ void read_gps(){
 void read_bmp(){
     temperature = bmp.readTemperature();
     pressure = bmp.readPressure();
-    altitude = bmp.readAltitude(pressure);
+    altitude = bmp.readAltitude(pressure_begin);
 }
 
 // HOEKEN UITPRINTEN ALS NODIG IS 
 void print_angles(){
-    mySerial.print("X: ");
+    mySerial.print("X : ");
     mySerial.print(X);
-    mySerial.print("\tY: ");
+    mySerial.print(" Y : ");
     mySerial.print(Y);
-    mySerial.print("\tZ: ");
+    mySerial.print(" Z : ");
     mySerial.println(Z);
     mySerial.println();
 
@@ -256,9 +254,9 @@ void print_angles(){
 void print_bmp(){
     mySerial.print("Temperatuur: ");
     mySerial.println(temperature);
-    mySerial.print("\tPressure: ");
+    mySerial.print("Pressure: ");
     mySerial.println(pressure);
-    mySerial.print("\tHoogte: ");
+    mySerial.print("Hoogte: ");
     mySerial.println(altitude);
     mySerial.println();
     
@@ -309,7 +307,7 @@ void setup() {
 
   // bmp
   setup_bmp();
-  pressure = (bmp.readPressure() / 100);
+  pressure_begin = (bmp.readPressure() / 100);
 
   // gps
 
@@ -338,10 +336,15 @@ void loop() {
 
     // toggle output 432600
     if(((millis() - 2000) >= print_timer) && (print_alles)){
-        print_timer_mpu += 2000;
+        print_timer += 2000;
         print_angles();
         print_bmp();
         print_gps();
+    }
+
+
+    if(altitude <= 100){
+        release_motoren();
     }
     
   
@@ -378,66 +381,67 @@ void loop() {
                 }
               break;
       
-      //2
-      case 50:mySerial.println("Sending 6%");
-              current_throttle = 1060;
-              esc1.writeMicroseconds(current_throttle);
-              esc2.writeMicroseconds(current_throttle);
-              esc3.writeMicroseconds(current_throttle);
-              esc4.writeMicroseconds(current_throttle);
-              break;
+        //2
+        case 50:mySerial.println("Sending 6%");
+                current_throttle = 1060;
+                esc1.writeMicroseconds(current_throttle);
+                esc2.writeMicroseconds(current_throttle);
+                esc3.writeMicroseconds(current_throttle);
+                esc4.writeMicroseconds(current_throttle);
+                break;
 
-      
-      //3
-      case 51:mySerial.println("Sending 8%");
-              current_throttle = 1080;
-              esc1.writeMicroseconds(current_throttle);
-              esc2.writeMicroseconds(current_throttle);
-              esc3.writeMicroseconds(current_throttle);
-              esc4.writeMicroseconds(current_throttle);
-              break;
-      //4
-      case 52:mySerial.println("Sending 16.5%");
-              current_throttle = 1165;
-              esc1.writeMicroseconds(current_throttle);
-              esc2.writeMicroseconds(current_throttle);
-              esc3.writeMicroseconds(current_throttle);
-              esc4.writeMicroseconds(current_throttle);
-              break;
+        
+        //3
+        case 51:mySerial.println("Sending 8%");
+                current_throttle = 1080;
+                esc1.writeMicroseconds(current_throttle);
+                esc2.writeMicroseconds(current_throttle);
+                esc3.writeMicroseconds(current_throttle);
+                esc4.writeMicroseconds(current_throttle);
+                break;
+        //4
+        case 52:mySerial.println("Sending 16.5%");
+                current_throttle = 1165;
+                esc1.writeMicroseconds(current_throttle);
+                esc2.writeMicroseconds(current_throttle);
+                esc3.writeMicroseconds(current_throttle);
+                esc4.writeMicroseconds(current_throttle);
+                break;
 
-      // 6
-      case 54: mySerial.println("Releasing arms");
-               
-               for(int i = 1; i <= 1000; i++){
-                release_arms();
-                }
+        // 6
+        case 54: mySerial.println("Releasing arms");
                 
-                while(true){
-                  release_arms();
-                  }
-               mySerial.println("Stop");    
-               break;
-       // 7
-      case 55: print_mpu = !print_mpu;
-               if(print_mpu)Serial.println("Printing angles ");
-               if(!print_mpu)mySerial.println("Stopped printing angles ");        
-               break;
-      
+                for(int i = 1; i <= 1000; i++){
+                    release_arms();
+                    }
+                    
+                    while(true){
+                    release_arms();
+                    }
+                mySerial.println("Stop");    
+                break;
 
-      // 8
-      case 56: mySerial.println("Resetting");
-               delay(500);
-               resetFunc();
-               break;
-      // 9
-      case 57: mySerial.println("Toggling hoveren: ");
-               if(!hoveren_toggle){hoveren_toggle = true;}else{hoveren_toggle = true;}
-               if(hoveren_toggle)mySerial.print("aan");
-               if(!hoveren_toggle)mySerial.print("Toggling hoveren: ");
-       
-      break;
-      }   
+        // 8
+        case 56: mySerial.println("Resetting");
+                delay(500);
+                resetFunc();
+                break;
+        // 9
+        case 57: mySerial.println("Toggling hoveren: ");
+                if(!hoveren_toggle){hoveren_toggle = true;}else{hoveren_toggle = true;}
+                if(hoveren_toggle)mySerial.print("aan");
+                if(!hoveren_toggle)mySerial.print("Toggling hoveren: ");
+        
+        break;
+        }   
     }
+}
+
+void release_motoren(){
+    release_arms();
+
+    
+
 }
 
 void release_arms(){
@@ -459,7 +463,7 @@ void displayInstructions()
     mySerial.println("\t4 : Send 16.5% throttle");
     mySerial.println("\t5 : - ");
     mySerial.println("\t6 : Release arms");
-    mySerial.println("\t7 : Toggle angle output");
+    mySerial.println("\t7 : - ");
     mySerial.println("\t8 : Resetten");
     mySerial.println("\t9 : Toggle hoveren");
 }
