@@ -1,0 +1,465 @@
+//////////////////////////////
+//         Motoren (ESCs)   //
+//  pinouts:  motor 1 -> 3  //
+//            motor 2 -> 5  //
+//            motor 3 -> 6  //
+//            motor 4 -> 9  //
+//////////////////////////////
+
+#include <Servo.h>
+#include <SoftwareSerial.h>
+#include <Wire.h>
+#include <MPU6050_light.h>
+#include <SPI.h>
+#include <Adafruit_BMP280.h>
+#include <TinyGPSPlus.h>
+ 
+// ========================================
+// ====              VARS            ======
+// ========================================
+
+// TIMERS =================================
+unsigned long print_timer_mpu = 0;
+unsigned long print_timer_bmp = 0;
+unsigned long print_timer_gps = 0;
+unsigned long print_timer = 0;
+
+// PRINTS =================================
+bool print_mpu = false; // mpu 6050
+bool print_bmp = false; // bmp 280
+bool print_gps = false; // neo 6m
+bool print_alles = true; // alles
+
+// HOVEREN ================================
+bool hoveren_toggle = false; // toggle hoveren
+
+
+// MPU ====================================
+MPU6050 mpu(Wire);
+char positie = " ";
+long x_ang, y_ang, z_ang;
+float X, Y, Z;
+
+// BMP ====================================
+#define BMP_SCK  (13)
+#define BMP_MISO (12)
+#define BMP_MOSI (11)
+#define BMP_CS   (10)
+
+Adafruit_BMP280 bmp(BMP_CS); // hardware SPI
+double pressure;
+
+float temperature;
+float altitude;
+
+// NEO 6M =================================
+TinyGPSPlus gps;
+SoftwareSerial gpsSerial(8, 2);
+
+double latitude;
+double longitude;
+
+
+
+// SNELHEID MOTOREN =======================
+int laag = 1160; // constant
+int hoog = 1180; // snelheid om te draaien
+
+// SERVOS =================================
+Servo esc1; // motor 1
+Servo esc2; // motor 2
+Servo esc3; // motor 3
+Servo esc4; // motor 4
+
+Servo release_servo;
+int release_servo_pos = 0;
+
+int first = 0;
+long unsigned a = 0;
+long unsigned delay_start = 0;
+
+int current_throttle; // snelheid var
+
+int hover_speed = 1165; // hover bij ong 330g
+
+
+// MOTOREN ===============================
+int MOTOR_1 = 3; // links voor
+int MOTOR_2 = 5; // rechts voor
+int MOTOR_3 = 6; // rechts achter
+int MOTOR_4 = 9; // links achter
+
+
+// ANTENNA ===============================
+SoftwareSerial mySerial(4, 7); // TX, RX | create antenna
+char data; // serial data
+
+
+// START MOTOREN ====================
+int initESC(){
+  esc1.attach(MOTOR_1, 1000, 2000);
+  esc2.attach(MOTOR_2, 1000, 2000);
+  esc3.attach(MOTOR_3, 1000, 2000);
+  esc4.attach(MOTOR_4, 1000, 2000);
+
+  esc1.write(90);
+  esc2.write(90);
+  esc3.write(90);
+  esc4.write(90);
+
+  esc1.writeMicroseconds(1500);
+  esc2.writeMicroseconds(1500);
+  esc3.writeMicroseconds(1500);
+  esc4.writeMicroseconds(1500);
+
+  delay(1000);
+  return 1;
+  }
+
+
+void hover_system(){
+    /*
+     * +X -> rechts
+     * -X -> links
+     * +Y -> voor
+     * -Y -> achter
+     * mpu 6050 +/- 1 graad
+     */
+
+  
+  // voor
+  if((Y > 1) && (positie != 'w')){
+    positie = 'w';
+    esc1.writeMicroseconds(hoog);
+    esc2.writeMicroseconds(hoog);
+    esc3.writeMicroseconds(laag);
+    esc4.writeMicroseconds(laag);
+    }
+  // achter
+  if((Y < -1) && (positie != 's')){
+    positie = 's';
+    esc1.writeMicroseconds(laag);
+    esc2.writeMicroseconds(laag);
+    esc3.writeMicroseconds(hoog);
+    esc4.writeMicroseconds(hoog);
+    }
+  // rechts
+  if((X > 1) && (positie != 'd')){
+    positie = 'd';
+    esc1.writeMicroseconds(laag);
+    esc2.writeMicroseconds(hoog);
+    esc3.writeMicroseconds(hoog);
+    esc4.writeMicroseconds(laag);
+  }
+  // links
+  if((X < -1)  && (positie != 'a')){
+    positie = 'a';
+    esc1.writeMicroseconds(hoog);
+    esc2.writeMicroseconds(laag);
+    esc3.writeMicroseconds(laag);
+    esc4.writeMicroseconds(hoog);
+  }
+  // links voor
+  if((Y > 1) && (X < -1) && (positie != '1')){
+    positie = '1';
+    esc1.writeMicroseconds(hoog);
+    esc2.writeMicroseconds(laag);
+    esc3.writeMicroseconds(laag);
+    esc4.writeMicroseconds(laag);
+    }
+  // rechts voor
+  if((Y > 1) && (X > 1) && (positie != '2')){
+    positie = '2';
+    esc1.writeMicroseconds(laag);
+    esc2.writeMicroseconds(hoog);
+    esc3.writeMicroseconds(laag);
+    esc4.writeMicroseconds(laag);  
+  }
+  // rechts achter
+  if((Y < -1) && (X > 1) && (positie != '3')){
+    positie = '3';
+    esc1.writeMicroseconds(laag);
+    esc2.writeMicroseconds(laag);
+    esc3.writeMicroseconds(hoog);
+    esc4.writeMicroseconds(laag);
+    }
+  // links achter
+  if((Y < -1) && (X < -1) && (positie != '4')){
+    positie = '4';
+    esc1.writeMicroseconds(laag);
+    esc2.writeMicroseconds(laag);
+    esc3.writeMicroseconds(laag);
+    esc4.writeMicroseconds(hoog);
+    }
+  // default positie
+  if(((-1 <= X) && (X <= 1)) && ((-1 <= Y) && (Y <= 1)) && (positie != '0')){
+    positie = '0';
+    esc1.writeMicroseconds(laag);
+    esc2.writeMicroseconds(laag);
+    esc3.writeMicroseconds(laag);
+    esc4.writeMicroseconds(laag);
+    mySerial.println("default pos");
+  }
+}
+
+// SETUP MPU ==========================
+void setup_mpu(){
+  byte status = mpu.begin();
+  mySerial.print(F("MPU6050 status: "));
+  mySerial.println(status);
+  while(status!=0){ } 
+  
+  mySerial.println(F("Calculating offsets, do not move MPU6050"));
+  delay(1000);
+  mpu.calcOffsets();
+  mySerial.println("Done!\n");
+  }
+
+// HOEKEN KRIJGEN 
+void read_angles(){
+    mpu.update();
+    X = mpu.getAngleX();
+    Y = mpu.getAngleY();
+    Z = mpu.getAngleZ();
+}
+void read_gps(){
+    while (gpsSerial.available() > 0)
+    if (gps.encode(gpsSerial.read())){   
+        if (gps.location.isValid()){
+            latitude = gps.location.lat();
+            longitude = gps.location.lng();
+        
+        }
+    }
+    if (millis() > 5000 && gps.charsProcessed() < 10){
+        mySerial.println("No GPS detected");
+        while(true);
+    }
+}
+void read_bmp(){
+    temperature = bmp.readTemperature();
+    pressure = bmp.readPressure();
+    altitude = bmp.readAltitude(pressure);
+}
+
+// HOEKEN UITPRINTEN ALS NODIG IS 
+void print_angles(){
+    mySerial.print("X: ");
+    mySerial.print(X);
+    mySerial.print("\tY: ");
+    mySerial.print(Y);
+    mySerial.print("\tZ: ");
+    mySerial.println(Z);
+    mySerial.println();
+
+}
+void print_bmp(){
+    mySerial.print("Temperatuur: ");
+    mySerial.println(temperature);
+    mySerial.print("\tPressure: ");
+    mySerial.println(pressure);
+    mySerial.print("\tHoogte: ");
+    mySerial.println(altitude);
+    mySerial.println();
+    
+}
+void print_gps(){
+    mySerial.print("Latitude:");
+    mySerial.print(latitude, 6);
+    mySerial.print("\tLongitude: ");
+    mySerial.println(longitude, 6);
+    mySerial.println();
+}
+
+// SETUP BMP ==============================
+void setup_bmp(){
+    Serial.println("BMP280 test");
+    unsigned status;
+    status = bmp.begin();
+    if (!status) {
+    Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+    "mtry a different address!"));
+    Serial.print("SensorID was: 0x"); Serial.println(bmp.sensorID(), 16);
+    Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
+    Serial.print("        ID of 0x56-0x58 represents a BMP 280,\n");
+    Serial.print("        ID of 0x60 represents a BME 280.\n");
+    Serial.print("        ID of 0x61 represents a BME 680.\n");
+    while (1) delay(10);
+    }
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                    Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+                    Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+                    Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+                    Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+}
+
+// SETUP ========================================================================
+void setup() {
+  Serial.begin(9600); // arduino serial starten
+  Wire.begin(); 
+  while ( !Serial ) { // wachten totdat de serial laadt
+    ;
+  }
+  mySerial.begin(9600); // antenna starten
+  gpsSerial.begin(9600); // gps starten
+  release_servo.attach(1); // release_servo verbinden
+
+  // mpu starten
+  setup_mpu();
+
+  // bmp
+  setup_bmp();
+  pressure = (bmp.readPressure() / 100);
+
+  // gps
+
+
+
+  // motoren starten
+  int escOk = initESC();
+  
+  displayInstructions();
+  
+}
+void(* resetFunc) (void) = 0;
+
+// LOOP ===============================================================
+void loop() {
+  
+    // sensoren lezen
+    read_angles();
+    read_bmp();
+    read_gps();
+
+    // motoren aan
+    if(hoveren_toggle){
+        hover_system();
+    }
+
+    // toggle output 432600
+    if(((millis() - 2000) >= print_timer) && (print_alles)){
+        print_timer_mpu += 2000;
+        print_angles();
+        print_bmp();
+        print_gps();
+    }
+    
+  
+    if (mySerial.available()){
+        data = mySerial.read();
+
+        switch (data){ 
+        //0
+        case 48:mySerial.println("Sending minimum throttle");
+                esc1.writeMicroseconds(MIN_PULSE_WIDTH);
+                esc2.writeMicroseconds(MIN_PULSE_WIDTH);
+                esc3.writeMicroseconds(MIN_PULSE_WIDTH);
+                esc4.writeMicroseconds(MIN_PULSE_WIDTH);
+                break;
+
+        //1
+        case 49:mySerial.println("Sending 10%");
+              esc1.writeMicroseconds(1100);
+              esc2.writeMicroseconds(1100);
+              esc3.writeMicroseconds(1100);
+              esc4.writeMicroseconds(1100);
+              delay_start = millis();
+              while(true){
+
+                if((millis() - delay_start) >= 77000){
+                  mySerial.println("stop motoren");
+                  mySerial.println(millis() - delay_start);
+                  esc1.writeMicroseconds(1000);
+                  esc2.writeMicroseconds(1000);
+                  esc3.writeMicroseconds(1000);
+                  esc4.writeMicroseconds(1000);
+                  break;
+                  }
+                }
+              break;
+      
+      //2
+      case 50:mySerial.println("Sending 6%");
+              current_throttle = 1060;
+              esc1.writeMicroseconds(current_throttle);
+              esc2.writeMicroseconds(current_throttle);
+              esc3.writeMicroseconds(current_throttle);
+              esc4.writeMicroseconds(current_throttle);
+              break;
+
+      
+      //3
+      case 51:mySerial.println("Sending 8%");
+              current_throttle = 1080;
+              esc1.writeMicroseconds(current_throttle);
+              esc2.writeMicroseconds(current_throttle);
+              esc3.writeMicroseconds(current_throttle);
+              esc4.writeMicroseconds(current_throttle);
+              break;
+      //4
+      case 52:mySerial.println("Sending 16.5%");
+              current_throttle = 1165;
+              esc1.writeMicroseconds(current_throttle);
+              esc2.writeMicroseconds(current_throttle);
+              esc3.writeMicroseconds(current_throttle);
+              esc4.writeMicroseconds(current_throttle);
+              break;
+
+      // 6
+      case 54: mySerial.println("Releasing arms");
+               
+               for(int i = 1; i <= 1000; i++){
+                release_arms();
+                }
+                
+                while(true){
+                  release_arms();
+                  }
+               mySerial.println("Stop");    
+               break;
+       // 7
+      case 55: print_mpu = !print_mpu;
+               if(print_mpu)Serial.println("Printing angles ");
+               if(!print_mpu)mySerial.println("Stopped printing angles ");        
+               break;
+      
+
+      // 8
+      case 56: mySerial.println("Resetting");
+               delay(500);
+               resetFunc();
+               break;
+      // 9
+      case 57: mySerial.println("Toggling hoveren: ");
+               if(!hoveren_toggle){hoveren_toggle = true;}else{hoveren_toggle = true;}
+               if(hoveren_toggle)mySerial.print("aan");
+               if(!hoveren_toggle)mySerial.print("Toggling hoveren: ");
+       
+      break;
+      }   
+    }
+}
+
+void release_arms(){
+    mySerial.println("Releasing arms ");
+    for (release_servo_pos = 0; release_servo_pos <= 50; release_servo_pos += 1) {
+        release_servo.write(release_servo_pos);              
+        delay(15);                       
+    }
+    release_servo.detach();
+}
+
+void displayInstructions()
+{  
+    mySerial.println("READY - PLEASE SEND INSTRUCTIONS AS FOLLOWING :");
+    mySerial.println("\t0 : Send min throttle");
+    mySerial.println("\t1 : Test 77 seconds flight");
+    mySerial.println("\t2 : Send 6% throttle");
+    mySerial.println("\t3 : Send 8% throttle");
+    mySerial.println("\t4 : Send 16.5% throttle");
+    mySerial.println("\t5 : - ");
+    mySerial.println("\t6 : Release arms");
+    mySerial.println("\t7 : Toggle angle output");
+    mySerial.println("\t8 : Resetten");
+    mySerial.println("\t9 : Toggle hoveren");
+}
